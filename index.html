@@ -201,6 +201,13 @@
         </button>
       </div>
     </div>
+
+    <!-- Footer Credit -->
+    <div class="fixed bottom-4 left-4 text-xs terminal-text">
+      <a href="https://x.com/waldcrypt" target="_blank" class="text-green-400 hover:text-cyan-400 transition-colors">
+        Created by waldcrypt
+      </a>
+    </div>
   </div>
 
   <script>
@@ -229,11 +236,11 @@
       if (isOnline) {
         statusEl.textContent = 'ONLINE';
         statusEl.className = 'connection-status online';
-        titleEl.textContent = 'LEADERBOARD';
+        titleEl.textContent = 'GLOBAL AGENTS';
       } else {
         statusEl.textContent = 'OFFLINE';
         statusEl.className = 'connection-status offline';
-        titleEl.textContent = 'LEADERBOARD';
+        titleEl.textContent = 'LOCAL AGENTS';
       }
     }
 
