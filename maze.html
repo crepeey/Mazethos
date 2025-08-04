@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MazETHOS Challenge</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      background: #000;
+      color: #0f0;
+      font-family: 'Courier New', monospace;
+      overflow: hidden;
+    }
+    .maze-cell {
+      width: 6px;
+      height: 6px;
+      position: relative;
+    }
+    .wall {
+      background-color: #1a1a1a;
+      border: 1px solid #333;
+    }
+    .path {
+      background-color: #0a0a0a;
+    }
+    .player {
+      background-color: #00ffff;
+      border-radius: 50%;
+      animation: pulse 1s infinite;
+    }
+    .goal {
+      background-image: url('ethos.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      animation: glow 2s ease-in-out infinite alternate;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+    }
+    @keyframes glow {
+      from { box-shadow: 0 0 5px #6366f1; }
+      to { box-shadow: 0 0 20px #6366f1, 0 0 30px #a855f7; }
+    }
+    .terminal-text {
+      font-family: 'Courier New', monospace;
+      letter-spacing: 0.1em;
+    }
+    .typing::after {
+      content: '_';
+      animation: blink 1s infinite;
+    }
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+    .logo {
+      width: 60px;
+      height: 60px;
+      background-image: url('ethos.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      margin: 0 auto 20px;
+    }
+    .hacker-input {
+      background: transparent;
+      border: 1px solid #0f0;
+      color: #0f0;
+      padding: 8px;
+      font-family: 'Courier New', monospace;
+      outline: none;
+    }
+    .hacker-input:focus {
+      box-shadow: 0 0 10px #0f0;
+    }
+    .leaderboard {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .connection-status {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-size: 10px;
+      font-family: 'Courier New', monospace;
+    }
+    .online {
+      background: #0f5132;
+      color: #0f0;
+      border: 1px solid #0f0;
+    }
+    .offline {
+      background: #721c24;
+      color: #ff6b6b;
+      border: 1px solid #ff6b6b;
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen">
+  <!-- Connection Status -->
+  <div id="connectionStatus" class="connection-status offline">OFFLINE</div>
+
+  <!-- Hacker UI Intro Screen -->
+  <div id="intro" class="fixed inset-0 bg-black text-green-400 flex flex-col items-center justify-center text-sm p-6">
+    <div class="max-w-2xl w-full">
+      <!-- Logo -->
+      <div class="logo mb-8"></div>
+      
+      <!-- Terminal Boot Sequence -->
+      <div id="boot-sequence" class="terminal-text space-y-2 mb-8">
+        <div class="boot-line hidden">[INITIALIZING MazETHOS...]</div>
+        <div class="boot-line hidden">System: MazETHOS</div>
+        <div class="boot-line hidden">Status: Injecting entropy layers... ████████████ 100%</div>
+        <div class="boot-line hidden">Quantum maze generator online...</div>
+        <div class="boot-line hidden">Neural pathfinding algorithms loaded...</div>
+        <div class="boot-line hidden">Security matrix initialized...</div>
+        <div class="boot-line hidden">Biometric scanner ready...</div>
+        <div class="boot-line hidden">Connecting to global leaderboard...</div>
+        <div class="boot-line hidden">>> ACCESS GRANTED TO MazETHOS</div>
+        <div class="boot-line hidden mt-4">Welcome, Agent. Your mission: Navigate the quantum labyrinth.</div>
+        <div class="boot-line hidden">Only the worthy shall obtain the sacred EthOS code...</div>
+        <div class="boot-line hidden mt-4 text-red-400">WARNING: This maze has broken many minds before you.</div>
+        <div class="boot-line hidden text-red-400">Are you ready to LOSE? Because the winner is always...</div>
+        <div class="boot-line hidden text-yellow-400 font-bold">🏆 ETHOS! 🏆</div>
+        <div class="boot-line hidden text-cyan-400">Prove us wrong... if you can. 😈</div>
+      </div>
+
+      <!-- Player Input -->
+      <div id="player-input" class="hidden space-y-4">
+        <div class="terminal-text">
+          <p class="mb-2">>> AGENT IDENTIFICATION REQUIRED</p>
+          <p class="mb-4">Enter your X username:</p>
+          <input 
+            type="text" 
+            id="playerName" 
+            class="hacker-input w-64" 
+            placeholder="AGENT_NAME"
+            maxlength="20"
+          >
+        </div>
+        <button 
+          id="startBtn" 
+          class="mt-4 px-6 py-3 border border-green-400 hover:bg-green-700 hover:text-black transition-all terminal-text"
+          disabled
+        >
+          [ENTER THE MazETHOS]
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Maze Interface -->
+  <div id="game" class="hidden flex flex-col items-center justify-center min-h-screen p-4">
+    <!-- Header -->
+    <div class="text-center mb-4">
+      <div class="logo mb-4"></div>
+      <h1 class="text-xl font-bold mb-2 terminal-text">🔐 MazETHOS </h1>
+      <div class="flex space-x-8 text-sm terminal-text">
+        <div>Agent: <span id="playerNameDisplay" class="text-cyan-400"></span></div>
+        <div>Time: <span id="timer" class="text-yellow-400">00:00</span></div>
+        <div>Goal: Navigate to the EthOS beacon →</div>
+      </div>
+    </div>
+
+    <!-- Maze Container -->
+    <div class="flex gap-8">
+      <!-- Maze -->
+      <div class="flex flex-col items-center">
+        <div id="maze" class="grid grid-cols-[repeat(50,6px)] grid-rows-[repeat(35,6px)] gap-[1px] p-2 bg-gray-900 border border-green-400"></div>
+        <p class="text-xs mt-2 text-gray-400 terminal-text">Use arrow keys to move</p>
+      </div>
+
+      <!-- Leaderboard -->
+      <div class="leaderboard bg-gray-900 border border-green-400 p-4 w-64">
+        <h3 class="text-green-400 font-bold mb-3 terminal-text">
+          🏆 <span id="leaderboardTitle">GLOBAL AGENTS</span>
+        </h3>
+        <div id="leaderboard-list" class="space-y-1 terminal-text text-xs">
+          <!-- Leaderboard entries will be inserted here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Victory Screen -->
+    <div id="victory" class="hidden fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center">
+      <div class="bg-gray-900 border-2 border-green-400 p-8 text-center max-w-md">
+        <div class="logo mb-4"></div>
+        <h2 class="text-2xl font-bold text-green-400 mb-4 terminal-text">MISSION ACCOMPLISHED</h2>
+        <p class="terminal-text mb-2">Congratulations, <span id="victoryName" class="text-cyan-400"></span>!</p>
+        <p class="terminal-text mb-4">Your MazETHOS access code is:</p>
+        <div class="text-xl font-bold text-yellow-400 mb-4 terminal-text" id="accessCode">XX8JQ2KLMN</div>
+        <p class="terminal-text mb-6">Completion time: <span id="finalTime" class="text-orange-400"></span></p>
+        <button id="playAgain" class="px-6 py-2 border border-green-400 hover:bg-green-700 hover:text-black transition-all terminal-text">
+          [PLAY AGAIN]
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Supabase configuration - Replace with your actual values
+    const SUPABASE_URL = 'https://your-project.supabase.co'; // Replace this
+    const SUPABASE_ANON_KEY = 'your-anon-key'; // Replace this
+    
+    // Initialize Supabase (will fallback to localStorage if not configured)
+    let supabase = null;
+    let isOnline = false;
+    
+    try {
+      if (SUPABASE_URL !== 'https://your-project.supabase.co' && SUPABASE_ANON_KEY !== 'your-anon-key') {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        isOnline = true;
+      }
+    } catch (error) {
+      console.log('Supabase not configured, using localStorage');
+    }
+
+    // Update connection status
+    function updateConnectionStatus() {
+      const statusEl = document.getElementById('connectionStatus');
+      const titleEl = document.getElementById('leaderboardTitle');
+      
+      if (isOnline) {
+        statusEl.textContent = 'ONLINE';
+        statusEl.className = 'connection-status online';
+        titleEl.textContent = 'GLOBAL AGENTS';
+      } else {
+        statusEl.textContent = 'OFFLINE';
+        statusEl.className = 'connection-status offline';
+        titleEl.textContent = 'LOCAL AGENTS';
+      }
+    }
+
+    // Game state
+    let gameState = {
+      playerName: '',
+      startTime: null,
+      endTime: null,
+      timerInterval: null,
+      isGameActive: false,
+      isInputFocused: false
+    };
+
+    // DOM elements
+    const intro = document.getElementById("intro");
+    const game = document.getElementById("game");
+    const playerInput = document.getElementById("player-input");
+    const playerNameInput = document.getElementById("playerName");
+    const startBtn = document.getElementById("startBtn");
+    const playerNameDisplay = document.getElementById("playerNameDisplay");
+    const timer = document.getElementById("timer");
+    const victory = document.getElementById("victory");
+    const victoryName = document.getElementById("victoryName");
+    const finalTime = document.getElementById("finalTime");
+    const accessCode = document.getElementById("accessCode");
+    const playAgain = document.getElementById("playAgain");
+
+    // Maze configuration
+    const mazeWidth = 50;
+    const mazeHeight = 35;
+    const mazeContainer = document.getElementById("maze");
+
+    let playerPos = { x: 1, y: 1 };
+    let goalPos = { x: mazeWidth - 2, y: mazeHeight - 2 };
+    let grid = [];
+    let cellElements = [];
+
+    // Track input focus to prevent WASD interference
+    playerNameInput.addEventListener('focus', () => {
+      gameState.isInputFocused = true;
+    });
+
+    playerNameInput.addEventListener('blur', () => {
+      gameState.isInputFocused = false;
+    });
+
+    // Boot sequence animation
+    function startBootSequence() {
+      const bootLines = document.querySelectorAll('.boot-line');
+      let delay = 0;
+      
+      bootLines.forEach((line, index) => {
+        setTimeout(() => {
+          line.classList.remove('hidden');
+          line.classList.add('typing');
+          
+          setTimeout(() => {
+            line.classList.remove('typing');
+          }, 500);
+          
+          if (index === bootLines.length - 1) {
+            setTimeout(() => {
+              document.getElementById('boot-sequence').style.opacity = '0.7';
+              playerInput.classList.remove('hidden');
+              // Auto focus on input
+              playerNameInput.focus();
+            }, 1000);
+          }
+        }, delay);
+        delay += 400;
+      });
+    }
+
+    // Player name input validation
+    playerNameInput.addEventListener('input', (e) => {
+      const name = e.target.value.trim();
+      startBtn.disabled = name.length < 2;
+      if (name.length >= 2) {
+        startBtn.classList.add('hover:bg-green-700');
+      } else {
+        startBtn.classList.remove('hover:bg-green-700');
+      }
+    });
+
+    playerNameInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !startBtn.disabled) {
+        startGame();
+      }
+    });
+
+    // Start game
+    startBtn.addEventListener("click", startGame);
+    playAgain.addEventListener("click", resetGame);
+
+    function startGame() {
+      gameState.playerName = playerNameInput.value.trim().toUpperCase();
+      playerNameDisplay.textContent = gameState.playerName;
+      gameState.isInputFocused = false;
+      
+      intro.classList.add("hidden");
+      game.classList.remove("hidden");
+      
+      generateMaze();
+      renderMaze();
+      renderPlayer();
+      startTimer();
+      
+      gameState.isGameActive = true;
+    }
+
+    function resetGame() {
+      victory.classList.add('hidden');
+      intro.classList.remove('hidden');
+      game.classList.add('hidden');
+      
+      playerNameInput.value = '';
+      startBtn.disabled = true;
+      gameState.isInputFocused = false;
+      
+      // Reset boot sequence
+      document.querySelectorAll('.boot-line').forEach(line => {
+        line.classList.add('hidden');
+        line.classList.remove('typing');
+      });
+      document.getElementById('boot-sequence').style.opacity = '1';
+      playerInput.classList.add('hidden');
+      
+      // Reset game state
+      gameState = {
+        playerName: '',
+        startTime: null,
+        endTime: null,
+        timerInterval: null,
+        isGameActive: false,
+        isInputFocused: false
+      };
+      
+      playerPos = { x: 1, y: 1 };
+      goalPos = { x: mazeWidth - 2, y: mazeHeight - 2 };
+      
+      // Restart boot sequence
+      setTimeout(startBootSequence, 500);
+    }
+
+    // Enhanced maze generation using recursive backtracking with more complexity
+    function generateMaze() {
+      // Initialize grid with walls
+      grid = Array.from({ length: mazeHeight }, () => Array(mazeWidth).fill("wall"));
+      
+      // Carve maze using recursive backtracking with enhanced complexity
+      function carveMaze(x, y) {
+        grid[y][x] = "path";
+        
+        // Get random directions with bias towards creating longer corridors
+        const directions = [
+          [0, -2], [2, 0], [0, 2], [-2, 0]
+        ].sort(() => Math.random() - 0.5);
+        
+        for (const [dx, dy] of directions) {
+          const nx = x + dx;
+          const ny = y + dy;
+          
+          if (nx > 0 && ny > 0 && nx < mazeWidth - 1 && ny < mazeHeight - 1 && grid[ny][nx] === "wall") {
+            // Carve path between current and next cell
+            grid[y + dy/2][x + dx/2] = "path";
+            carveMaze(nx, ny);
+          }
+        }
+      }
+      
+      // Start carving from player position
+      carveMaze(playerPos.x, playerPos.y);
+      
+      // Add multiple branching paths for increased complexity
+      for (let i = 0; i < 15; i++) {
+        const startX = Math.floor(Math.random() * (mazeWidth / 2)) * 2 + 1;
+        const startY = Math.floor(Math.random() * (mazeHeight / 2)) * 2 + 1;
+        if (grid[startY] && grid[startY][startX] === "path") {
+          carveMaze(startX, startY);
+        }
+      }
+      
+      // Add extra connections to create loops and multiple paths
+      for (let i = 0; i < 25; i++) {
+        const x = Math.floor(Math.random() * (mazeWidth - 2)) + 1;
+        const y = Math.floor(Math.random() * (mazeHeight - 2)) + 1;
+        if (grid[y][x] === "wall") {
+          const neighbors = [
+            [x-1, y], [x+1, y], [x, y-1], [x, y+1]
+          ].filter(([nx, ny]) => nx >= 0 && ny >= 0 && nx < mazeWidth && ny < mazeHeight && grid[ny][nx] === "path");
+          
+          if (neighbors.length >= 2) {
+            grid[y][x] = "path";
+          }
+        }
+      }
+      
+      // Create some dead ends and false paths for extra difficulty
+      for (let i = 0; i < 10; i++) {
+        const x = Math.floor(Math.random() * (mazeWidth - 4)) + 2;
+        const y = Math.floor(Math.random() * (mazeHeight - 4)) + 2;
+        if (grid[y][x] === "wall") {
+          // Create a small dead-end branch
+          grid[y][x] = "path";
+          const directions = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+          const dir = directions[Math.floor(Math.random() * directions.length)];
+          const nx = x + dir[0];
+          const ny = y + dir[1];
+          if (nx > 0 && ny > 0 && nx < mazeWidth - 1 && ny < mazeHeight - 1) {
+            grid[ny][nx] = "path";
+          }
+        }
+      }
+      
+      // Find a reachable goal position (prefer corners for maximum difficulty)
+      const pathCells = [];
+      for (let y = 0; y < mazeHeight; y++) {
+        for (let x = 0; x < mazeWidth; x++) {
+          if (grid[y][x] === "path" && (x !== playerPos.x || y !== playerPos.y)) {
+            pathCells.push({ x, y });
+          }
+        }
+      }
+      
+      // Select goal from the furthest reachable cells, preferring corners
+      if (pathCells.length > 0) {
+        // Sort by distance from player and corner preference
+        pathCells.sort((a, b) => {
+          const distA = Math.abs(a.x - playerPos.x) + Math.abs(a.y - playerPos.y);
+          const distB = Math.abs(b.x - playerPos.x) + Math.abs(b.y - playerPos.y);
+          
+          // Bonus for being in corners
+          const cornerBonusA = (a.x < 5 || a.x > mazeWidth - 6) && (a.y < 5 || a.y > mazeHeight - 6) ? 100 : 0;
+          const cornerBonusB = (b.x < 5 || b.x > mazeWidth - 6) && (b.y < 5 || b.y > mazeHeight - 6) ? 100 : 0;
+          
+          return (distB + cornerBonusB) - (distA + cornerBonusA);
+        });
+        
+        // Pick from the top 5% furthest cells for maximum challenge
+        const topCells = pathCells.slice(0, Math.max(1, Math.floor(pathCells.length * 0.05)));
+        goalPos = topCells[Math.floor(Math.random() * topCells.length)];
+      }
+      
+      // Ensure goal is marked as path
+      grid[goalPos.y][goalPos.x] = "path";
+    }
+
+    // Render maze
+    function renderMaze() {
+      mazeContainer.innerHTML = '';
+      cellElements = [];
+      
+      for (let y = 0; y < mazeHeight; y++) {
+        for (let x = 0; x < mazeWidth; x++) {
+          const cell = document.createElement("div");
+          cell.classList.add("maze-cell", grid[y][x]);
+          cell.dataset.x = x;
+          cell.dataset.y = y;
+          mazeContainer.appendChild(cell);
+          cellElements.push(cell);
+        }
+      }
+    }
+
+    function getCell(x, y) {
+      return cellElements[y * mazeWidth + x];
+    }
+
+    function renderPlayer() {
+      cellElements.forEach(cell => cell.classList.remove("player", "goal"));
+      getCell(playerPos.x, playerPos.y).classList.add("player");
+      getCell(goalPos.x, goalPos.y).classList.add("goal");
+    }
+
+    // Timer functionality
+    function startTimer() {
+      gameState.startTime = Date.now();
+      gameState.timerInterval = setInterval(updateTimer, 100);
+    }
+
+    function updateTimer() {
+      if (!gameState.startTime) return;
+      
+      const elapsed = Date.now() - gameState.startTime;
+      const minutes = Math.floor(elapsed / 60000);
+      const seconds = Math.floor((elapsed % 60000) / 1000);
+      const milliseconds = Math.floor((elapsed % 1000) / 10);
+      
+      timer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
+    }
+
+    function stopTimer() {
+      if (gameState.timerInterval) {
+        clearInterval(gameState.timerInterval);
+        gameState.timerInterval = null;
+      }
+      gameState.endTime = Date.now();
+    }
+
+    // Player movement
+    function move(dx, dy) {
+      if (!gameState.isGameActive) return;
+      
+      const nx = playerPos.x + dx;
+      const ny = playerPos.y + dy;
+      
+      if (nx < 0 || ny < 0 || nx >= mazeWidth || ny >= mazeHeight) return;
+      if (grid[ny][nx] === "wall") return;
+      
+      playerPos = { x: nx, y: ny };
+      renderPlayer();
+      
+      // Check for victory
+      if (playerPos.x === goalPos.x && playerPos.y === goalPos.y) {
+        gameWon();
+      }
+    }
+
+    // Generate truly random access code
+    function generateAccessCode() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let result = '';
+      for (let i = 0; i < 8; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return result;
+    }
+
+    // Game victory
+    function gameWon() {
+      gameState.isGameActive = false;
+      stopTimer();
+      
+      const completionTime = gameState.endTime - gameState.startTime;
+      const timeString = formatTime(completionTime);
+      
+      // Generate truly random access code
+      const randomCode = generateAccessCode();
+      
+      // Update victory screen
+      victoryName.textContent = gameState.playerName;
+      finalTime.textContent = timeString;
+      accessCode.textContent = randomCode;
+      
+      // Save to leaderboard
+      saveScore(gameState.playerName, completionTime);
+      updateLeaderboard();
+      
+      // Show victory screen
+      victory.classList.remove('hidden');
+    }
+
+    // Online leaderboard functions
+    async function saveScoreOnline(name, time) {
+      try {
+        const { data, error } = await supabase
+          .from('leaderboard')
+          .insert([
+            {
+              name: name,
+              time: time,
+              created_at: new Date().toISOString()
+            }
+          ]);
+        
+        if (error) throw error;
+        return true;
+      } catch (error) {
+        console.error('Error saving to online leaderboard:', error);
+        return false;
+      }
+    }
+
+    async function getScoresOnline() {
+      try {
+        const { data, error } = await supabase
+          .from('leaderboard')
+          .select('*')
+          .order('time', { ascending: true })
+          .limit(5);
+        
+        if (error) throw error;
+        return data || [];
+      } catch (error) {
+        console.error('Error fetching online leaderboard:', error);
+        return [];
+      }
+    }
+
+    // Hybrid leaderboard functionality (online + offline fallback)
+    async function saveScore(name, time) {
+      // Always save locally first
+      let scores = JSON.parse(localStorage.getItem('mazethosLeaderboard') || '[]');
+      scores.push({ name, time, date: Date.now() });
+      scores.sort((a, b) => a.time - b.time);
+      scores = scores.slice(0, 5);
+      localStorage.setItem('mazethosLeaderboard', JSON.stringify(scores));
+
+      // Try to save online if available
+      if (isOnline && supabase) {
+        await saveScoreOnline(name, time);
+      }
+    }
+
+    async function updateLeaderboard() {
+      const leaderboardList = document.getElementById('leaderboard-list');
+      let scores = [];
+
+      // Try to get online scores first
+      if (isOnline && supabase) {
+        scores = await getScoresOnline();
+      }
+
+      // Fallback to local scores if online fails or not available
+      if (scores.length === 0) {
+        scores = JSON.parse(localStorage.getItem('mazethosLeaderboard') || '[]');
+      }
+      
+      if (scores.length === 0) {
+        leaderboardList.innerHTML = '<div class="text-gray-500">No records yet</div>';
+        return;
+      }
+      
+      leaderboardList.innerHTML = scores.map((score, index) => `
+        <div class="flex justify-between items-center py-1 ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-orange-400' : 'text-gray-500'}">
+          <span>${index + 1}. ${score.name}</span>
+          <span>${formatTime(score.time)}</span>
+        </div>
+      `).join('');
+    }
+
+    function formatTime(ms) {
+      const minutes = Math.floor(ms / 60000);
+      const seconds = Math.floor((ms % 60000) / 1000);
+      const milliseconds = Math.floor((ms % 1000) / 10);
+      return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
+    }
+
+    // Keyboard controls - only when not typing in input
+    document.addEventListener("keydown", e => {
+      // Don't interfere with typing in input field
+      if (gameState.isInputFocused) return;
+      
+      switch (e.key) {
+        case "ArrowUp": 
+        case "w":
+        case "W":
+          e.preventDefault();
+          move(0, -1); 
+          break;
+        case "ArrowDown": 
+        case "s":
+        case "S":
+          e.preventDefault();
+          move(0, 1); 
+          break;
+        case "ArrowLeft": 
+        case "a":
+        case "A":
+          e.preventDefault();
+          move(-1, 0); 
+          break;
+        case "ArrowRight": 
+        case "d":
+        case "D":
+          e.preventDefault();
+          move(1, 0); 
+          break;
+      }
+    });
+
+    // Initialize
+    updateConnectionStatus();
+    updateLeaderboard();
+    startBootSequence();
+  </script>
+</body>
+</html>
