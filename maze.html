@@ -201,12 +201,19 @@
         </button>
       </div>
     </div>
+
+    <!-- Footer Credit -->
+    <div class="fixed bottom-4 left-4 text-xs terminal-text">
+      <a href="https://x.com/waldcrypt" target="_blank" class="text-green-400 hover:text-cyan-400 transition-colors">
+        Created by waldcrypt
+      </a>
+    </div>
   </div>
 
   <script>
     // Supabase configuration - Replace with your actual values
-    const SUPABASE_URL = 'https://your-project.supabase.co'; // Replace this
-    const SUPABASE_ANON_KEY = 'your-anon-key'; // Replace this
+    const SUPABASE_URL = 'https://ylflsfrmalogzoihiauw.supabase.co'; // Replace this
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsZmxzZnJtYWxvZ3pvaWhpYXV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMDkwMzUsImV4cCI6MjA2OTg4NTAzNX0.rPgRFPu8eoJwsvAzyXbnqqIts0AY8-ufSeuQztaQO44'; // Replace this
     
     // Initialize Supabase (will fallback to localStorage if not configured)
     let supabase = null;
@@ -229,11 +236,11 @@
       if (isOnline) {
         statusEl.textContent = 'ONLINE';
         statusEl.className = 'connection-status online';
-        titleEl.textContent = 'LEADERBOARD';
+        titleEl.textContent = 'GLOBAL AGENTS';
       } else {
         statusEl.textContent = 'OFFLINE';
         statusEl.className = 'connection-status offline';
-        titleEl.textContent = 'LEADERBOARD';
+        titleEl.textContent = 'LOCAL AGENTS';
       }
     }
 
