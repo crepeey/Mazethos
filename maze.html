@@ -10,7 +10,8 @@
       background: #000;
       color: #0f0;
       font-family: 'Courier New', monospace;
-      overflow: hidden;
+      overflow: auto;
+      min-height: 100vh;
     }
     .maze-cell {
       width: 6px;
@@ -106,7 +107,7 @@
   <div id="connectionStatus" class="connection-status offline">OFFLINE</div>
 
   <!-- Hacker UI Intro Screen -->
-  <div id="intro" class="fixed inset-0 bg-black text-green-400 flex flex-col items-center justify-center text-sm p-6">
+  <div id="intro" class="fixed inset-0 bg-black text-green-400 flex flex-col items-center justify-center text-sm p-6 overflow-y-auto">
     <div class="max-w-2xl w-full">
       <!-- Logo -->
       <div class="logo mb-8"></div>
@@ -131,7 +132,7 @@
       </div>
 
       <!-- Player Input -->
-      <div id="player-input" class="hidden space-y-4">
+      <div id="player-input" class="hidden space-y-4 mb-8">
         <div class="terminal-text">
           <p class="mb-2">>> AGENT IDENTIFICATION REQUIRED</p>
           <p class="mb-4">Enter your X username:</p>
