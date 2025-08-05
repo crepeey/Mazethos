@@ -343,7 +343,7 @@
     </div>
 
     <!-- Victory Screen -->
-    <div id="victory" class="hidden fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center">
+    <div id="victory" class="hidden fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
       <div class="bg-gray-900 border-2 border-green-400 p-8 text-center max-w-md">
         <div class="logo mb-4"></div>
         <h2 class="text-2xl font-bold text-green-400 mb-4 terminal-text">MISSION ACCOMPLISHED</h2>
@@ -785,6 +785,12 @@
       console.log('Updating leaderboard display...');
       await updateLeaderboard();
       
+      // Force refresh leaderboard after a small delay
+      setTimeout(async () => {
+        console.log('Force refreshing leaderboard...');
+        await updateLeaderboard();
+      }, 1000);
+      
       // Show victory screen
       victory.classList.remove('hidden');
     }
@@ -822,7 +828,7 @@
           .from('leaderboard')
           .select('*')
           .order('time', { ascending: true })
-          .limit(5);
+          .limit(10);
         
         if (error) {
           console.error('Supabase select error:', error);
@@ -846,7 +852,7 @@
       
       scores.push({ name, time, date: Date.now() });
       scores.sort((a, b) => a.time - b.time);
-      scores = scores.slice(0, 5);
+      scores = scores.slice(0, 10);
       localStorage.setItem('mazethosLeaderboard', JSON.stringify(scores));
       
       console.log('Local scores after save:', scores);
