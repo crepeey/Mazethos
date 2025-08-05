@@ -2,29 +2,44 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>MazETHOS Challenge</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body {
-      background: #000;
+      background: #1a1a1a;
       color: #0f0;
       font-family: 'Courier New', monospace;
       overflow: auto;
       min-height: 100vh;
     }
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: url('ethos.png');
+      background-size: 60px 60px;
+      background-repeat: repeat;
+      opacity: 0.15;
+      pointer-events: none;
+      z-index: -1;
+    }
     .maze-cell {
       width: 6px;
       height: 6px;
       position: relative;
+      z-index: 1;
     }
     .wall {
-      background-color: #1a1a1a;
-      border: 1px solid #333;
+      background-color: #000000;
+      border: 1px solid #111;
     }
     .path {
-      background-color: #0a0a0a;
+      background-color: #666666;
+      border: 1px solid #888;
     }
     .player {
       background-color: #00ffff;
@@ -32,11 +47,13 @@
       animation: pulse 1s infinite;
     }
     .goal {
+      background-color: #000000 !important;
       background-image: url('ethos.png');
       background-size: contain;
       background-repeat: no-repeat;
       background-position: center;
       animation: glow 2s ease-in-out infinite alternate;
+      border: 2px solid #6366f1 !important;
     }
     @keyframes pulse {
       0%, 100% { transform: scale(1); }
@@ -101,103 +118,24 @@
       color: #ff6b6b;
       border: 1px solid #ff6b6b;
     }
-    .mobile-controls {
-      display: none;
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 1000;
+    .maze-background {
+      position: relative;
     }
-    .mobile-controls.show {
-      display: block;
+    .maze-background::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: url('ethos.png');
+      background-size: 30px 30px;
+      background-repeat: repeat;
+      background-position: center;
+      opacity: 0.08;
+      pointer-events: none;
+      z-index: 0;
     }
-    .mobile-controls.mobile-visible {
-      display: block;
-    }
-    
-    /* Always show on mobile */
-    @media (max-width: 768px) {
-      .mobile-controls {
-        display: block !important;
-      }
-      
-      /* Mobile responsive layout */
-      #game {
-        padding: 10px !important;
-        min-height: 100vh !important;
-        overflow: auto !important;
-      }
-      
-      /* Make maze container responsive */
-      .flex.gap-8 {
-        flex-direction: column !important;
-        gap: 20px !important;
-        align-items: center !important;
-      }
-      
-      /* Adjust maze size for mobile */
-      #maze {
-        max-width: 100vw !important;
-        max-height: 60vh !important;
-        overflow: auto !important;
-        transform: scale(0.8) !important;
-        transform-origin: center !important;
-      }
-      
-      /* Make leaderboard mobile friendly */
-      .leaderboard {
-        width: 90vw !important;
-        max-width: 300px !important;
-        max-height: 150px !important;
-      }
-      
-      /* Adjust header for mobile */
-      .text-center.mb-4 {
-        margin-bottom: 10px !important;
-      }
-      
-      .text-center.mb-4 .flex {
-        flex-direction: column !important;
-        gap: 5px !important;
-      }
-      
-      /* Adjust logo size for mobile */
-      .logo {
-        width: 40px !important;
-        height: 40px !important;
-      }
-    }
-    .control-btn {
-      width: 50px;
-      height: 50px;
-      background: rgba(0, 255, 0, 0.2);
-      border: 2px solid #0f0;
-      color: #0f0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      cursor: pointer;
-      user-select: none;
-      transition: all 0.2s;
-    }
-    .control-btn:active {
-      background: rgba(0, 255, 0, 0.4);
-      transform: scale(0.95);
-    }
-    .control-btn:hover {
-      background: rgba(0, 255, 0, 0.3);
-    }
-    .control-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 5px;
-    }
-    .control-grid .control-btn:nth-child(1) { grid-column: 2; }
-    .control-grid .control-btn:nth-child(2) { grid-column: 1; grid-row: 2; }
-    .control-grid .control-btn:nth-child(3) { grid-column: 2; grid-row: 2; }
-    .control-grid .control-btn:nth-child(4) { grid-column: 3; grid-row: 2; }
-    .control-grid .control-btn:nth-child(5) { grid-column: 2; grid-row: 3; }
   </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen">
@@ -270,8 +208,8 @@
     <div class="flex gap-8">
       <!-- Maze -->
       <div class="flex flex-col items-center">
-        <div id="maze" class="grid grid-cols-[repeat(50,6px)] grid-rows-[repeat(35,6px)] gap-[1px] p-2 bg-gray-900 border border-green-400"></div>
-        <p class="text-xs mt-2 text-gray-400 terminal-text">Use arrow keys or touch controls to move</p>
+        <div id="maze" class="grid grid-cols-[repeat(50,6px)] grid-rows-[repeat(35,6px)] gap-[1px] p-2 bg-gray-900 border border-green-400 maze-background"></div>
+        <p class="text-xs mt-2 text-gray-400 terminal-text">Use arrow keys to move</p>
       </div>
 
       <!-- Leaderboard -->
@@ -306,16 +244,6 @@
       <a href="https://x.com/waldcrypt" target="_blank" class="text-green-400 hover:text-cyan-400 transition-colors">
         Created by waldcrypt
       </a>
-    </div>
-
-    <!-- Mobile Controls -->
-    <div id="mobileControls" class="mobile-controls">
-      <div class="control-grid">
-        <button class="control-btn" data-direction="up">↑</button>
-        <button class="control-btn" data-direction="left">←</button>
-        <button class="control-btn" data-direction="down">↓</button>
-        <button class="control-btn" data-direction="right">→</button>
-      </div>
     </div>
   </div>
 
@@ -457,8 +385,11 @@
       renderPlayer();
       startTimer();
       
+      // Debug: Check player starting position
+      console.log("Player starting position:", playerPos, "Cell type:", grid[playerPos.y][playerPos.x]);
+      console.log("Goal position:", goalPos, "Cell type:", grid[goalPos.y][goalPos.x]);
+      
       gameState.isGameActive = true;
-      showMobileControls();
     }
 
     function resetGame() {
@@ -490,8 +421,6 @@
       
       playerPos = { x: 1, y: 1 };
       goalPos = { x: mazeWidth - 2, y: mazeHeight - 2 };
-      
-      hideMobileControls();
       
       // Restart boot sequence
       setTimeout(startBootSequence, 500);
@@ -525,6 +454,9 @@
       
       // Start carving from player position
       carveMaze(playerPos.x, playerPos.y);
+      
+      // Ensure player position is definitely a path
+      grid[playerPos.y][playerPos.x] = "path";
       
       // Add multiple branching paths for increased complexity
       for (let i = 0; i < 15; i++) {
@@ -660,7 +592,14 @@
       const ny = playerPos.y + dy;
       
       if (nx < 0 || ny < 0 || nx >= mazeWidth || ny >= mazeHeight) return;
-      if (grid[ny][nx] === "wall") return;
+      
+      const targetCellType = grid[ny][nx];
+      console.log(`Trying to move to (${nx}, ${ny}), cell type: ${targetCellType}`);
+      
+      if (targetCellType === "wall") {
+        console.log("Blocked by wall!");
+        return; // Can't move into walls
+      }
       
       playerPos = { x: nx, y: ny };
       renderPlayer();
@@ -824,77 +763,10 @@
       }
     });
 
-    // Mobile controls functionality
-    function initMobileControls() {
-      const mobileControls = document.getElementById('mobileControls');
-      const controlButtons = mobileControls.querySelectorAll('.control-btn');
-      
-      controlButtons.forEach(button => {
-        button.addEventListener('click', (e) => {
-          e.preventDefault();
-          const direction = button.dataset.direction;
-          
-          switch(direction) {
-            case 'up':
-              move(0, -1);
-              break;
-            case 'down':
-              move(0, 1);
-              break;
-            case 'left':
-              move(-1, 0);
-              break;
-            case 'right':
-              move(1, 0);
-              break;
-          }
-        });
-        
-        // Add touch feedback
-        button.addEventListener('touchstart', () => {
-          button.style.transform = 'scale(0.95)';
-        });
-        
-        button.addEventListener('touchend', () => {
-          button.style.transform = 'scale(1)';
-        });
-      });
-    }
-
-    // Show mobile controls only when game is active
-    function showMobileControls() {
-      const mobileControls = document.getElementById('mobileControls');
-      if (window.innerWidth <= 768) {
-        mobileControls.classList.add('show');
-        mobileControls.classList.add('mobile-visible');
-      }
-    }
-
-    function hideMobileControls() {
-      const mobileControls = document.getElementById('mobileControls');
-      mobileControls.classList.remove('show');
-      mobileControls.classList.remove('mobile-visible');
-    }
-    
-    // Force show mobile controls on mobile
-    function forceShowMobileControls() {
-      const mobileControls = document.getElementById('mobileControls');
-      if (window.innerWidth <= 768) {
-        mobileControls.style.display = 'block';
-      }
-    }
-
     // Initialize
     updateConnectionStatus();
     updateLeaderboard();
     startBootSequence();
-    initMobileControls();
-    
-    // Force show mobile controls on mobile devices
-    forceShowMobileControls();
-    
-    // Also check on window resize
-    window.addEventListener('resize', forceShowMobileControls);
   </script>
 </body>
 </html>
