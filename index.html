@@ -379,9 +379,23 @@
       if (SUPABASE_URL !== 'https://your-project.supabase.co' && SUPABASE_ANON_KEY !== 'your-anon-key') {
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         isOnline = true;
+        console.log('Supabase initialized successfully:', SUPABASE_URL);
+        
+        // Test connection
+        supabase.from('leaderboard').select('count', { count: 'exact', head: true })
+          .then(({ count, error }) => {
+            if (error) {
+              console.error('Supabase connection test failed:', error);
+              console.log('This might indicate the table does not exist or RLS policies are blocking access');
+            } else {
+              console.log('Supabase connection test successful. Table row count:', count);
+            }
+          });
+      } else {
+        console.log('Supabase not configured - using placeholder values');
       }
     } catch (error) {
-      console.log('Supabase not configured, using localStorage');
+      console.error('Supabase initialization error:', error);
     }
 
     // Update connection status
@@ -393,14 +407,14 @@
       if (isOnline) {
         statusEl.textContent = 'ONLINE';
         statusEl.className = 'connection-status online';
-        titleEl.textContent = 'GLOBAL AGENTS';
-        titleMobileEl.textContent = 'GLOBAL AGENTS';
       } else {
         statusEl.textContent = 'OFFLINE';
         statusEl.className = 'connection-status offline';
-        titleEl.textContent = 'LOCAL AGENTS';
-        titleMobileEl.textContent = 'LOCAL AGENTS';
       }
+      
+      // Always show "GLOBAL AGENTS" regardless of connection status
+      titleEl.textContent = 'GLOBAL AGENTS';
+      titleMobileEl.textContent = 'GLOBAL AGENTS';
     }
 
     // Game state
@@ -729,12 +743,18 @@
     }
 
     // Game victory
-    function gameWon() {
+    async function gameWon() {
       gameState.isGameActive = false;
       stopTimer();
       
       const completionTime = gameState.endTime - gameState.startTime;
       const timeString = formatTime(completionTime);
+      
+      console.log('Game won! Completion details:', {
+        player: gameState.playerName,
+        time: completionTime,
+        timeString: timeString
+      });
       
       // Generate truly random access code
       const randomCode = generateAccessCode();
@@ -745,8 +765,11 @@
       accessCode.textContent = randomCode;
       
       // Save to leaderboard
-      saveScore(gameState.playerName, completionTime);
-      updateLeaderboard();
+      console.log('Saving score to leaderboard...');
+      await saveScore(gameState.playerName, completionTime);
+      
+      console.log('Updating leaderboard display...');
+      await updateLeaderboard();
       
       // Show victory screen
       victory.classList.remove('hidden');
@@ -755,6 +778,7 @@
     // Online leaderboard functions
     async function saveScoreOnline(name, time) {
       try {
+        console.log('Attempting to save score online:', { name, time });
         const { data, error } = await supabase
           .from('leaderboard')
           .insert([
@@ -765,7 +789,11 @@
             }
           ]);
         
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase insert error:', error);
+          throw error;
+        }
+        console.log('Score saved successfully:', data);
         return true;
       } catch (error) {
         console.error('Error saving to online leaderboard:', error);
@@ -775,13 +803,18 @@
 
     async function getScoresOnline() {
       try {
+        console.log('Attempting to fetch scores online...');
         const { data, error } = await supabase
           .from('leaderboard')
           .select('*')
           .order('time', { ascending: true })
           .limit(5);
         
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase select error:', error);
+          throw error;
+        }
+        console.log('Scores fetched successfully:', data);
         return data || [];
       } catch (error) {
         console.error('Error fetching online leaderboard:', error);
@@ -791,16 +824,26 @@
 
     // Hybrid leaderboard functionality (online + offline fallback)
     async function saveScore(name, time) {
+      console.log('saveScore called with:', { name, time });
+      
       // Always save locally first
       let scores = JSON.parse(localStorage.getItem('mazethosLeaderboard') || '[]');
+      console.log('Current local scores before save:', scores);
+      
       scores.push({ name, time, date: Date.now() });
       scores.sort((a, b) => a.time - b.time);
       scores = scores.slice(0, 5);
       localStorage.setItem('mazethosLeaderboard', JSON.stringify(scores));
+      
+      console.log('Local scores after save:', scores);
 
       // Try to save online if available
       if (isOnline && supabase) {
-        await saveScoreOnline(name, time);
+        console.log('Attempting online save...');
+        const success = await saveScoreOnline(name, time);
+        console.log('Online save result:', success);
+      } else {
+        console.log('Skipping online save - not online or no supabase');
       }
     }
 
