@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MazETHOS Challenge</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -136,6 +137,101 @@
       pointer-events: none;
       z-index: 0;
     }
+    
+    /* Mobile Controls */
+    .mobile-controls {
+      display: none;
+    }
+    
+    .control-btn {
+      width: 60px;
+      height: 60px;
+      background: transparent;
+      border: 2px solid #0f0;
+      color: #0f0;
+      font-size: 20px;
+      font-weight: bold;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      touch-action: manipulation;
+      font-family: 'Courier New', monospace;
+    }
+    
+    .control-btn:active {
+      background: #0f0;
+      color: #000;
+      transform: scale(0.95);
+    }
+    
+    .control-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: 1fr 1fr 1fr;
+      gap: 10px;
+      width: 200px;
+      height: 200px;
+    }
+    
+    .control-up { grid-column: 2; grid-row: 1; }
+    .control-left { grid-column: 1; grid-row: 2; }
+    .control-right { grid-column: 3; grid-row: 2; }
+    .control-down { grid-column: 2; grid-row: 3; }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .mobile-controls {
+        display: block;
+      }
+      
+      .desktop-layout {
+        flex-direction: column !important;
+        gap: 20px !important;
+      }
+      
+      .leaderboard {
+        width: 100% !important;
+        max-width: 400px;
+        max-height: 150px;
+      }
+      
+      #maze {
+        transform: scale(0.8);
+        transform-origin: center;
+      }
+      
+      .logo {
+        width: 40px !important;
+        height: 40px !important;
+      }
+      
+      .terminal-text {
+        font-size: 12px;
+      }
+      
+      h1 {
+        font-size: 18px !important;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      #maze {
+        transform: scale(0.6);
+      }
+      
+      .control-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 16px;
+      }
+      
+      .control-grid {
+        width: 170px;
+        height: 170px;
+      }
+    }
   </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen">
@@ -205,19 +301,42 @@
     </div>
 
     <!-- Maze Container -->
-    <div class="flex gap-8">
+    <div class="flex gap-8 desktop-layout">
       <!-- Maze -->
       <div class="flex flex-col items-center">
         <div id="maze" class="grid grid-cols-[repeat(50,6px)] grid-rows-[repeat(35,6px)] gap-[1px] p-2 bg-gray-900 border border-green-400 maze-background"></div>
-        <p class="text-xs mt-2 text-gray-400 terminal-text">Use arrow keys to move</p>
+        <p class="text-xs mt-2 text-gray-400 terminal-text hidden md:block">Use arrow keys to move</p>
       </div>
 
-      <!-- Leaderboard -->
-      <div class="leaderboard bg-gray-900 border border-green-400 p-4 w-64">
+      <!-- Leaderboard (Desktop) -->
+      <div class="leaderboard bg-gray-900 border border-green-400 p-4 w-64 hidden md:block">
         <h3 class="text-green-400 font-bold mb-3 terminal-text">
           🏆 <span id="leaderboardTitle">GLOBAL AGENTS</span>
         </h3>
         <div id="leaderboard-list" class="space-y-1 terminal-text text-xs">
+          <!-- Leaderboard entries will be inserted here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Controls -->
+    <div class="mobile-controls flex flex-col items-center mt-4">
+      <p class="text-xs mb-4 text-gray-400 terminal-text">Touch controls to move</p>
+      <div class="control-grid">
+        <button class="control-btn control-up" id="mobile-up">↑</button>
+        <button class="control-btn control-left" id="mobile-left">←</button>
+        <button class="control-btn control-right" id="mobile-right">→</button>
+        <button class="control-btn control-down" id="mobile-down">↓</button>
+      </div>
+    </div>
+
+    <!-- Mobile Leaderboard -->
+    <div class="mobile-controls mt-6">
+      <div class="leaderboard bg-gray-900 border border-green-400 p-4 mx-auto">
+        <h3 class="text-green-400 font-bold mb-3 terminal-text text-center">
+          🏆 <span id="leaderboardTitleMobile">GLOBAL AGENTS</span>
+        </h3>
+        <div id="leaderboard-list-mobile" class="space-y-1 terminal-text text-xs">
           <!-- Leaderboard entries will be inserted here -->
         </div>
       </div>
@@ -269,15 +388,18 @@
     function updateConnectionStatus() {
       const statusEl = document.getElementById('connectionStatus');
       const titleEl = document.getElementById('leaderboardTitle');
+      const titleMobileEl = document.getElementById('leaderboardTitleMobile');
       
       if (isOnline) {
         statusEl.textContent = 'ONLINE';
         statusEl.className = 'connection-status online';
         titleEl.textContent = 'GLOBAL AGENTS';
+        titleMobileEl.textContent = 'GLOBAL AGENTS';
       } else {
         statusEl.textContent = 'OFFLINE';
         statusEl.className = 'connection-status offline';
         titleEl.textContent = 'LOCAL AGENTS';
+        titleMobileEl.textContent = 'LOCAL AGENTS';
       }
     }
 
@@ -684,6 +806,7 @@
 
     async function updateLeaderboard() {
       const leaderboardList = document.getElementById('leaderboard-list');
+      const leaderboardListMobile = document.getElementById('leaderboard-list-mobile');
       let scores = [];
 
       // Try to get online scores first
@@ -696,17 +819,17 @@
         scores = JSON.parse(localStorage.getItem('mazethosLeaderboard') || '[]');
       }
       
-      if (scores.length === 0) {
-        leaderboardList.innerHTML = '<div class="text-gray-500">No records yet</div>';
-        return;
-      }
+      const leaderboardHTML = scores.length === 0 
+        ? '<div class="text-gray-500">No records yet</div>'
+        : scores.map((score, index) => `
+            <div class="flex justify-between items-center py-1 ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-orange-400' : 'text-gray-500'}">
+              <span>${index + 1}. ${score.name}</span>
+              <span>${formatTime(score.time)}</span>
+            </div>
+          `).join('');
       
-      leaderboardList.innerHTML = scores.map((score, index) => `
-        <div class="flex justify-between items-center py-1 ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-orange-400' : 'text-gray-500'}">
-          <span>${index + 1}. ${score.name}</span>
-          <span>${formatTime(score.time)}</span>
-        </div>
-      `).join('');
+      leaderboardList.innerHTML = leaderboardHTML;
+      leaderboardListMobile.innerHTML = leaderboardHTML;
     }
 
     function formatTime(ms) {
@@ -748,6 +871,33 @@
           break;
       }
     });
+
+    // Mobile Controls Event Listeners
+    document.getElementById('mobile-up').addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      move(0, -1);
+    });
+    
+    document.getElementById('mobile-down').addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      move(0, 1);
+    });
+    
+    document.getElementById('mobile-left').addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      move(-1, 0);
+    });
+    
+    document.getElementById('mobile-right').addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      move(1, 0);
+    });
+
+    // Also support click for testing on desktop
+    document.getElementById('mobile-up').addEventListener('click', () => move(0, -1));
+    document.getElementById('mobile-down').addEventListener('click', () => move(0, 1));
+    document.getElementById('mobile-left').addEventListener('click', () => move(-1, 0));
+    document.getElementById('mobile-right').addEventListener('click', () => move(1, 0));
 
     // Initialize
     updateConnectionStatus();
